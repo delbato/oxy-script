@@ -1,0 +1,23 @@
+[package]
+name = "oxlex-derive"
+version = "0.1.0"
+authors = ["Daniel Wanner <daniel.wanner@pm.me>"]
+edition = "2018"
+
+[lib]
+name = "oxlex_derive"
+path = "src/lib.rs"
+proc-macro = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+syn = "1.0.13"
+quote = "1.0.2"
+proc-macro2 = "1.0.7"
+
+
+[features]
+default = [
+    "syn/full"
+]

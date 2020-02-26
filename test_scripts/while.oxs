@@ -1,0 +1,13 @@
+import std::printi;
+import std::println;
+
+fn: main(arg: int) ~ int {
+    var until: int = arg;
+    var i: int = 0;
+    while i < until {
+        printi(i);
+        println(" ");
+        i += 1;
+    }
+    return i;
+}

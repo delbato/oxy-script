@@ -1,0 +1,19 @@
+[package]
+name = "oxs"
+version = "0.1.0"
+authors = ["Daniel Wanner <daniel.wanner@pm.me>"]
+edition = "2018"
+license = "BSD-3-Clause"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = "1.0.104"
+byteorder = "1.3.2"
+bincode = "1.2.1"
+memoffset = "0.5.3"
+rand = "0.7.2"
+enum-primitive-derive = "0.1.2"
+num-traits = "0.2.10"
+
+oxlex = { path = "../../oxlex/oxlex" }

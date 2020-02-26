@@ -1,0 +1,18 @@
+[workspace]
+members = [
+    "oxs/oxs",
+    "oxs/oxs-std",
+    "oxs/oxs-derive",
+    "oxlex/oxlex",
+    "oxlex/oxlex-derive",
+    "oxsh"
+]
+
+[profile.release]
+opt-level = 3
+debug = false
+incremental = true
+lto = true
+
+[profile.test]
+debug = true

@@ -1,0 +1,48 @@
+import: std::{
+    print,
+    println,
+    printf
+};
+
+cont: Vector {
+    x: float;
+    y: float;
+}
+
+impl: Vector {
+    fn: get_length(&this) ~ float {
+        var x_squared = this.x * this.x;
+        var y_squared = this.y * this.y;
+        var length = sqrt(x_squared + y_squared);
+        return length;
+    }
+}
+
+fn: sqrt(arg: float) ~ float {
+    var error = 0.00001;
+    var s = arg;
+
+    while s - (arg / s) > error {
+        s = (s + arg / s) / 2.0;
+    }
+
+    return s;
+}
+
+
+fn: get_ten() ~ float {
+    return 10.0;
+}
+
+fn: main() {
+    var vec = Vector {
+        x: 7.0,
+        y: 0.0 - 6.3
+    };
+    //var x = &vec.x;
+    var length = Vector::get_length(&vec);
+    //var length = vec.get_length(); ERRORS
+    print("Length of this vector: ");
+    printf(length);
+    println(".");
+}

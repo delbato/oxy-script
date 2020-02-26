@@ -1,0 +1,32 @@
+import std::printi;
+import std::println;
+import std::print;
+
+fn: main(n: int) ~ int {
+    var t1: int = 0;
+    var t2: int = 1;
+    var nextT: int = 0;
+
+    print("Value of n: ");
+    printi(n);
+    println(" ");
+    print("Fibonacci series: ");
+    printi(t1);
+    print(" ");
+    printi(t2);
+    println(" ");
+
+    nextT = t1 + t2;
+
+    while nextT <= t2 {
+        printi(nextT);
+        print(", ");
+        t1 = t2;
+        t2 = nextT;
+        nextT = t1 + t2;
+    }
+
+    println(" ");
+
+    return 0;
+}

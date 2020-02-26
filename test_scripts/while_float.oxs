@@ -1,0 +1,9 @@
+fn: main(until: float, step: float) ~ int {
+    var i: float = 0.0;
+
+    while i < until {
+        i += step;
+    }
+
+    return 0;
+}

@@ -1,0 +1,28 @@
+import std::{
+    print,
+    println,
+    printf,
+    printi
+};
+
+fn: main(arg: float) ~ int {
+    var error = 0.00001;
+    var s = arg;
+    var i = 0;
+
+    while s - (arg / s) > error {
+        s = (s + arg / s) / 2.0;
+        i += 1;
+    }
+
+    print("Square root of ");
+    printf(arg);
+    print(" is ");
+    printf(s);
+    println(".");
+    print("This took ");
+    printi(i);
+    println(" iterations.");
+    
+    return 0;
+}

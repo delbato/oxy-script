@@ -1,0 +1,15 @@
+[package]
+name = "oxs-std"
+version = "0.1.0"
+authors = ["Daniel Wanner <daniel.wanner@pm.me>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "oxs_std"
+path = "src/lib.rs"
+crate-type = [ "rlib", "dylib" ]
+
+[dependencies]
+oxs = { path = "../oxs" }
