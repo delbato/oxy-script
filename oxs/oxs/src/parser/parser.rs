@@ -21,9 +21,20 @@ use std::{
         Formatter,
         Result as FmtResult
     },
+    fs::{
+        File
+    },
     error::Error,
-    ops::Range,
-    cell::RefCell
+    ops::{
+        Range,
+        Deref
+    },
+    io::Read,
+    cell::RefCell,
+    path::{
+        Path,
+        PathBuf
+    }
 };
 
 use oxlex::prelude::Lexable;
@@ -63,6 +74,9 @@ pub enum ParseErrorType {
     ExpectedContainerName,
     ExpectedArraySize,
     ExpectedCloseBracket,
+    NotInFileMode,
+    AmbiguousModuleFile(String),
+    NoModuleFile(String),
     InvalidTypename(String),
     InvalidTokenInTypename(Token),
     DuplicateMember,
@@ -110,7 +124,8 @@ pub type ParseResult<T> = Result<T, ParseError>;
 
 pub struct Parser {
     code: String,
-    current_cont: RefCell<String>
+    current_cont: RefCell<String>,
+    script_root_dir: RefCell<Option<PathBuf>>
 }
 
 fn is_op(token: &Token) -> bool {
@@ -205,8 +220,29 @@ impl Parser {
     pub fn new(code: String) -> Self {
         Parser {
             code: code,
-            current_cont: RefCell::new(String::new())
+            current_cont: RefCell::new(String::new()),
+            script_root_dir: RefCell::new(None)
         }
+    }
+
+    /// Sets the scripts root directory
+    pub fn set_root_dir(&self, path: &Path) {
+        let root_dir = PathBuf::from(path);
+        *(self.script_root_dir.borrow_mut()) = Some(root_dir);
+    }
+
+    /// Gets the scripts root directory
+    pub fn get_root_dir(&self) -> ParseResult<PathBuf> {
+        self.script_root_dir.borrow()
+            .deref()
+            .as_ref()
+            .cloned()
+            .ok_or(ParseError::new(ParseErrorType::NotInFileMode, 0..0))
+    }
+
+    /// Clears the scripts root directory
+    pub fn clear_root_dir(&self) {
+        *(self.script_root_dir.borrow_mut()) = None;
     }
 
     pub fn parse_decl_list(&self, lexer: &mut Lexer, delims: &[Token]) -> ParseResult<Vec<Declaration>> {
@@ -319,21 +355,67 @@ impl Parser {
         // Swallow mod name
         lexer.advance();
 
-        if lexer.token != Token::OpenBlock {
-            return Err(ParseError::new(ParseErrorType::ExpectedOpenBlock, lexer.range()));
+        let decl_list;
+
+        if lexer.token == Token::Semicolon {
+            // Swallow ";"
+            lexer.advance();
+            decl_list = self.parse_mod_file_decl_list(lexer, &mod_name)?;
+        } else if lexer.token == Token::OpenBlock {
+            // Swallow "{"
+            lexer.advance();
+            // Parse contents
+            decl_list = self.parse_decl_list(lexer, &[Token::CloseBlock])?;
+            // Swallow "}"
+            lexer.advance();
+        } else {
+            return make_parse_error!(lexer, ParseErrorType::Unknown);
         }
 
-        // Swallow "{"
-        lexer.advance();
-
-        let decl_list = self.parse_decl_list(lexer, &[Token::CloseBlock])?;
-
-        // Swallow "}"
-        lexer.advance();
+        //println!("Decl list of mod {}: {:?}", mod_name, decl_list);
 
         Ok(
             Declaration::Module(mod_name, decl_list)
         )
+    }
+
+    pub fn parse_mod_file_decl_list(&self, old_lexer: &Lexer, mod_name: &String) -> ParseResult<Vec<Declaration>> {
+        //println!("Parsing module file with name {}", mod_name);
+        let mut script_root_dir = self.get_root_dir()?;
+        let mut single_file_name = mod_name.clone();
+        single_file_name += ".oxs";
+        let single_file_path = script_root_dir.join(single_file_name);
+        let multi_file_path = script_root_dir.join(mod_name).join("mod.oxs");
+
+        if single_file_path.exists() && multi_file_path.exists() {
+            return make_parse_error!(old_lexer, ParseErrorType::AmbiguousModuleFile(mod_name.clone()));
+        } else if single_file_path.exists() {
+            //println!("Is single file. path: {}", single_file_path.to_str().unwrap());
+            let mut file = File::open(single_file_path)
+                .map_err(|_| ParseError::new(ParseErrorType::Unknown, old_lexer.range()))?;
+            let mut file_contents = String::new();
+            file.read_to_string(&mut file_contents)
+                .map_err(|_| ParseError::new(ParseErrorType::Unknown, old_lexer.range()))?;
+            let mut lexer = Token::lexer(file_contents.as_str());
+            let decl_list = self.parse_decl_list(&mut lexer, &[])?;
+            //println!("Decl list: {:?}", decl_list);
+            return Ok(decl_list);
+        } else if multi_file_path.exists() {
+            script_root_dir = PathBuf::from(multi_file_path.parent().unwrap());
+            self.set_root_dir(&script_root_dir);
+            let mut file = File::open(multi_file_path)
+                .map_err(|_| ParseError::new(ParseErrorType::Unknown, old_lexer.range()))?;
+            let mut file_contents = String::new();
+            file.read_to_string(&mut file_contents)
+                .map_err(|_| ParseError::new(ParseErrorType::Unknown, old_lexer.range()))?;
+            let mut lexer = Token::lexer(file_contents.as_str());
+            let decl_list = self.parse_decl_list(&mut lexer, &[])?;
+            script_root_dir = PathBuf::from(script_root_dir.parent().unwrap());
+            self.set_root_dir(&script_root_dir);
+            return Ok(decl_list);
+        } else {
+            return make_parse_error!(old_lexer, ParseErrorType::NoModuleFile(mod_name.clone()));
+        }
     }
 
     pub fn parse_import_string(&self, lexer: &mut Lexer, delims: &[Token]) -> ParseResult<(String, String)> {

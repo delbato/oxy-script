@@ -1,0 +1,9 @@
+import: std::{
+    printi,
+    println
+};
+
+fn: println_i(arg: int) {
+    printi(arg);
+    println(" ");
+}

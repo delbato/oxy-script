@@ -1,3 +1,6 @@
+/// Contains the "core" library
+pub mod core;
+
 use crate::{
     vm::{
         core::{
@@ -39,7 +42,8 @@ use std::{
         File
     },
     path::{
-        Path
+        Path,
+        PathBuf
     },
     error::Error,
     fmt::{
@@ -57,7 +61,8 @@ use serde::{
 
 pub struct Engine {
     core: Core,
-    pub compiler: Compiler
+    pub compiler: Compiler,
+    pub script_root_dir: Option<PathBuf>
 }
 
 pub type EngineResult<T> = Result<T, Box<EngineError>>;
@@ -84,7 +89,8 @@ impl Engine {
         let mut compiler = Compiler::new();
         Engine {
             core: Core::new(stack_size),
-            compiler: compiler
+            compiler: compiler,
+            script_root_dir: None
         }
     }
 
@@ -95,6 +101,10 @@ impl Engine {
 
     pub fn load_code(&mut self, code: &str) -> EngineResult<()> {
         let parser = Parser::new(String::from(code));
+        if self.script_root_dir.is_some() {
+            let script_root_dir = self.script_root_dir.as_ref().unwrap();
+            parser.set_root_dir(&script_root_dir);
+        }
         let decl_list = parser.parse_root_decl_list()
             .map_err(|p| {
                 let mut offset = 0;
@@ -120,12 +130,29 @@ impl Engine {
     pub fn run_file(&mut self, path: &Path) -> EngineResult<()> {
         let mut file = File::open(path)
             .map_err(|_| Box::new(EngineError::Unknown))?;
-
+        let script_root_dir = path.parent()
+            .ok_or(EngineError::Unknown)?;
+        self.script_root_dir = Some(PathBuf::from(script_root_dir));
         let mut file_content = String::new();
         file.read_to_string(&mut file_content)
             .map_err(|_| Box::new(EngineError::Unknown))?;
+        self.run_code(&file_content)?;
+        self.script_root_dir = None;
+        Ok(())
+    }
 
-        self.run_code(&file_content)
+    pub fn load_file(&mut self, path: &Path) -> EngineResult<()> {
+        let mut file = File::open(path)
+            .map_err(|_| Box::new(EngineError::Unknown))?;
+        let script_root_dir = path.parent()
+            .ok_or(EngineError::Unknown)?;
+        self.script_root_dir = Some(PathBuf::from(script_root_dir));
+        let mut file_content = String::new();
+        file.read_to_string(&mut file_content)
+            .map_err(|_| Box::new(EngineError::Unknown))?;
+        self.load_code(&file_content)?;
+        self.script_root_dir = None;
+        Ok(())
     }
 
     pub fn run_stream(&mut self, readable: Box<dyn Read>) -> EngineResult<()> {
@@ -157,7 +184,7 @@ impl Engine {
     pub fn run_fn<T>(&mut self, name: T) -> EngineResult<()>
         where String: From<T> {
         let name = String::from(name);
-        let fn_uid = self.compiler.get_function_uid(&name)
+        let fn_uid = self.compiler.get_function_uid(&name)  
             .map_err(|ce| EngineError::CompileError(ce))?;
         self.core.run_fn(fn_uid)
             .map_err(|c| Box::new(EngineError::CoreError(c)))

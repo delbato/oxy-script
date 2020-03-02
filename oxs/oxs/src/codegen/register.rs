@@ -56,7 +56,7 @@ impl Into<u8> for Register {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct RegisterAllocator {
     register_queue: VecDeque<Register>,
     blocked_registers: HashSet<Register>,

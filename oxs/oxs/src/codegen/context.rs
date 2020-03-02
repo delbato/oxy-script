@@ -27,7 +27,7 @@ use std::{
     }
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ModuleContext {
     pub name: String,
     pub modules: HashMap<String, ModuleContext>,
@@ -111,13 +111,13 @@ impl ModuleContext {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum VariableLocation {
     Stack(i64),
     Register(Register)
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct FunctionContext {
     pub def: Option<FunctionDef>,
     pub weak: bool,
@@ -255,6 +255,7 @@ impl FunctionContext {
     }
 }
 
+#[derive(Clone)]
 pub struct LoopContext {
     pub pos_start: usize,
     pub tag_end: u64
