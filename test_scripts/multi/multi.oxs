@@ -3,7 +3,7 @@ mod: util;
 import: util::println_i = print;
 
 fn: main() ~ int {
-    var x = 4;
+    var x: string = "dsdsdssdd";
     x += 2;
     print(x);
     return x - 6;
