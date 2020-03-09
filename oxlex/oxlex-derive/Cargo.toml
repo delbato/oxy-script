@@ -7,7 +7,7 @@ license = "BSD3"
 documentation = "https://docs.rs/oxlex"
 homepage = "https://github.com/wrckn/oxy-script"
 repository = "https://github.com/wrckn/oxy-script"
-description = "Simple and naive lexer/tokenizer used in OxyScript"
+description = "Derive component for oxlex"
 
 [lib]
 name = "oxlex_derive"
