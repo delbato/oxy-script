@@ -52,7 +52,7 @@ fn register_std_print(engine: &mut Engine) -> EngineResult<()> {
         .with_arg(Type::String)
         .with_ret_type(Type::Void)
         .with_closure(Box::new(|adapter: &mut Adapter| {
-            //println!("Calling println!");
+            //println!("Calling //println!");
             let arg: String = adapter.get_arg(0);
             println!("{}", arg);
         }));

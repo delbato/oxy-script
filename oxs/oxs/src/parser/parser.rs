@@ -82,6 +82,7 @@ pub enum ParseErrorType {
     DuplicateMember,
     ExpectedImport,
     ExpectedImportString,
+    ExpectedInterfaceName,
     ExpectedMod,
     ExpectedIf,
     ExpectedImpl,
@@ -268,6 +269,9 @@ impl Parser {
                 Token::Impl => {
                     ret.push(self.parse_impl_decl(lexer)?);
                 },
+                Token::Interface => {
+                    ret.push(self.parse_intf_decl(lexer)?);
+                },
                 _ => {
                     return Err(ParseError::new(ParseErrorType::ExpectedMod, lexer.range()));
                 }
@@ -275,6 +279,47 @@ impl Parser {
         }
 
         Ok(ret)
+    }
+
+    pub fn parse_intf_decl(&self, lexer: &mut Lexer) -> ParseResult<Declaration> {
+        if lexer.token != Token::Interface {
+            return make_parse_error!(lexer, ParseErrorType::Unknown);
+        }
+        // Swallow "intf"
+        lexer.advance();
+
+        if lexer.token != Token::Colon {
+            return make_parse_error!(lexer, ParseErrorType::ExpectedColon);
+        }
+
+        // Swallow ":"
+        lexer.advance();
+        
+        if lexer.token != Token::Text {
+            return make_parse_error!(lexer, ParseErrorType::ExpectedInterfaceName);
+        }
+
+        let intf_name = String::from(lexer.slice());
+        // Swallow intf name
+        lexer.advance();
+
+        if lexer.token != Token::OpenBlock {
+            return make_parse_error!(lexer, ParseErrorType::ExpectedOpenBlock);
+        }
+        // Swallow "{"
+        lexer.advance();
+
+        let decl_list = self.parse_decl_list(lexer, &[Token::CloseBlock])?;
+
+        if lexer.token != Token::CloseBlock {
+            return make_parse_error!(lexer, ParseErrorType::ExpectedCloseBlock);
+        }
+        // Swallow "}"
+        lexer.advance();
+
+        Ok(
+            Declaration::Interface(intf_name, decl_list)
+        )
     }
 
     pub fn parse_impl_decl(&self, lexer: &mut Lexer) -> ParseResult<Declaration> {

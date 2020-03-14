@@ -7,3 +7,7 @@ fn: println_i(arg: int) {
     printi(arg);
     println(" ");
 }
+
+fn: println(arg: string) {
+    println(arg);
+}

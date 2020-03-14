@@ -91,7 +91,7 @@ fn test_core_foreign_ptr() {
 
     impl Drop for Int {
         fn drop(&mut self) {
-            println!("Int with val {} dropped!", self.0);
+            //println!("Int with val {} dropped!", self.0);
         }
     }
 
@@ -99,13 +99,13 @@ fn test_core_foreign_ptr() {
 
     let mut core = Core::new(1024);
     let ptr_res = core.insert_foreign_ptr(int_arc);
-    println!("{:?}", ptr_res);
+    //println!("{:?}", ptr_res);
     assert!(ptr_res.is_ok());
     let ptr = ptr_res.unwrap();
 
     {
         let get_res = core.get_foreign_ptr(ptr);
-        println!("{:?}", get_res);
+        //println!("{:?}", get_res);
         assert!(get_res.is_ok());
 
         int_arc = get_res.unwrap();
@@ -117,7 +117,7 @@ fn test_core_foreign_ptr() {
     }
 
     let remove_res = core.remove_foreign_ptr(ptr);
-    println!("{:?}", remove_res);
+    //println!("{:?}", remove_res);
     assert!(remove_res.is_ok());
 
     int_arc = remove_res.unwrap();

@@ -112,7 +112,7 @@ impl Engine {
                 let mut line_nr = 0;
                 for line in code.lines() {
                     if offset <= token_range.start && offset + line.len() >= token_range.end {
-                        println!("Parse error in line #{} at offset {}", line_nr, token_range.start - offset);
+                        //println!("Parse error in line #{} at offset {}", line_nr, token_range.start - offset);
                     }
                     offset += line.len();
                     line_nr += 1;

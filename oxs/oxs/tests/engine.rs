@@ -30,11 +30,11 @@ fn test_engine_simple_function() {
 
     let builder = engine.compiler.get_builder();
     for instr in builder.instructions.iter() {
-        println!("{:?}", instr);
+        //println!("{:?}", instr);
     }
 
     let run_res = engine.run_fn(&String::from("root::main"));
-    println!("{:?}", run_res);
+    //println!("{:?}", run_res);
     assert!(run_res.is_ok());
 
     let result_res = engine.get_register_value::<i64>(Register::R0);
@@ -59,17 +59,17 @@ fn test_engine_if_else() {
 
     let mut engine = Engine::new(1024);
     let load_res = engine.load_code(&code);
-    println!("{:?}", load_res);
+    //println!("{:?}", load_res);
     assert!(load_res.is_ok());
 
     /*
     let builder = engine.compiler.get_builder();
     for instr in builder.instructions.iter() {
-        println!("{:?}", instr);
+        //println!("{:?}", instr);
     }*/
 
     let run_res = engine.run_fn("root::main");
-    println!("{:?}", run_res);
+    //println!("{:?}", run_res);
     assert!(run_res.is_ok());
 
     let result_res = engine.get_register_value::<i64>(Register::R0);
@@ -98,18 +98,18 @@ fn test_engine_if_else_if() {
 
     let mut engine = Engine::new(1024);
     let load_res = engine.load_code(&code);
-    println!("{:?}", load_res);
+    //println!("{:?}", load_res);
     assert!(load_res.is_ok());
 
     let mut offset = 0;
     let builder = engine.compiler.get_builder();
     for instr in builder.instructions.iter() {
-        println!("{}: {:?}", offset, instr);
+        //println!("{}: {:?}", offset, instr);
         offset += instr.get_size();
     }
 
     let run_res = engine.run_fn(&String::from("root::main"));
-    println!("{:?}", run_res);
+    //println!("{:?}", run_res);
     assert!(run_res.is_ok());
 
     let result_res = engine.get_register_value::<i64>(Register::R0);
@@ -138,15 +138,15 @@ fn test_engine_while() {
 
     let mut engine = Engine::new(1024);
     let load_res = engine.load_code(&code);
-    println!("{:?}", load_res);
+    //println!("{:?}", load_res);
     assert!(load_res.is_ok());
 
     let run_res = engine.run_fn("root::main");
-    println!("{:?}", run_res);
+    //println!("{:?}", run_res);
     assert!(run_res.is_ok());
 
     let reg_val_res = engine.get_register_value::<f32>(Register::R0);
-    println!("{:?}", reg_val_res);
+    //println!("{:?}", reg_val_res);
     assert_eq!(7.0, reg_val_res.unwrap());
     assert_eq!(0, engine.get_stack_size());
 }
@@ -156,7 +156,7 @@ fn test_engine_foreign_module() {
     let code = String::from("
         import std::{
             printi,
-            println,
+            //println,
             print
         };
 
@@ -194,13 +194,13 @@ fn test_engine_foreign_module() {
             let arg: String = adapter.get_arg(0);
             print!("{}", arg);
         }));
-    let println_function = Function::new("println")
+    let //println_function = Function::new("println")
         .with_arg(Type::String)
         .with_ret_type(Type::Void)
         .with_closure(Box::new(|adapter: &mut Adapter| {
-            //println!("Calling println!");
+            //println!("Calling //println!");
             let arg: String = adapter.get_arg(0);
-            println!("{}", arg);
+            //println!("{}", arg);
         }));
     
     let module = Module::new("std")
@@ -215,7 +215,7 @@ fn test_engine_foreign_module() {
     assert!(reg_res.is_ok());
 
     let load_res = engine.load_code(&code);
-    println!("{:?}", load_res);
+    //println!("{:?}", load_res);
     assert!(load_res.is_ok());
 
     let mut offset = 0;
@@ -290,13 +290,13 @@ fn test_engine_cont_simple() {
             let arg: String = adapter.get_arg(0);
             print!("{}", arg);
         }));
-    let println_function = Function::new("println")
+    let //println_function = Function::new("println")
         .with_arg(Type::String)
         .with_ret_type(Type::Void)
         .with_closure(Box::new(|adapter: &mut Adapter| {
-            //println!("Calling println!");
+            //println!("Calling //println!");
             let arg: String = adapter.get_arg(0);
-            println!("{}", arg);
+            //println!("{}", arg);
         }));
     let std_module = Module::new("std")
         .with_function(printi_function)
@@ -311,12 +311,12 @@ fn test_engine_cont_simple() {
     assert!(reg_res.is_ok());
 
     let load_res = engine.load_code(&code);
-    println!("{:?}", load_res);
+    //println!("{:?}", load_res);
     assert!(load_res.is_ok());
 
     let mut offset = 0;
     for instr in engine.compiler.get_builder().instructions.iter() {
-        println!("{}: {:?}", offset, instr);
+        //println!("{}: {:?}", offset, instr);
         offset += instr.get_size();
     }
 
@@ -330,7 +330,7 @@ fn test_engine_member_call() {
     let code = String::from("
         import std::{
             print,
-            println,
+            //println,
             printf
         };
         
@@ -363,7 +363,7 @@ fn test_engine_member_call() {
             vec.x += 3.14159;
             print(\"Value of x: \");
             printf(x);
-            println(\" \");
+            //println(\" \");
         }
     ");
 
@@ -394,9 +394,9 @@ fn test_engine_member_call() {
         .with_arg(Type::String)
         .with_ret_type(Type::Void)
         .with_closure(Box::new(|adapter: &mut Adapter| {
-            //println!("Calling println!");
+            //println!("Calling //println!");
             let arg: String = adapter.get_arg(0);
-            println!("{}", arg);
+            //println!("{}", arg);
         }));
     let std_module = Module::new("std")
         .with_function(printi_function)
@@ -411,7 +411,7 @@ fn test_engine_member_call() {
     assert!(reg_res.is_ok());
 
     let load_res = engine.load_code(&code);
-    println!("{:?}", load_res);
+    //println!("{:?}", load_res);
     assert!(load_res.is_ok());
 
     assert_eq!(engine.get_stack_size(), 0);
@@ -419,7 +419,7 @@ fn test_engine_member_call() {
     /*
     let mut offset = 0;
     for instr in engine.compiler.get_builder().instructions.iter() {
-        println!("{}: {:?}", offset, instr);
+        //println!("{}: {:?}", offset, instr);
         offset += instr.get_size();
     }
     */
@@ -427,6 +427,6 @@ fn test_engine_member_call() {
     let run_res = engine.run_fn("root::main");
 
     assert_eq!(engine.get_stack_size(), 0);
-    println!("{:?}", run_res);
+    //println!("{:?}", run_res);
     assert!(run_res.is_ok());
 }

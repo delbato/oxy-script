@@ -19,8 +19,8 @@ impl: Vector {
 }
 
 fn: sqrt(arg: float) ~ float {
-    var error = 0.00001;
-    var s = arg;
+    var error: float = 0.00001;
+    var s: float = arg;
 
     while s - (arg / s) > error {
         s = (s + arg / s) / 2.0;
@@ -39,9 +39,8 @@ fn: main() {
         x: 7.0,
         y: 0.0 - 6.3
     };
-    //var x = &vec.x;
-    var length = Vector::get_length(&vec);
-    //var length = vec.get_length(); ERRORS
+    var length = vec.get_length();
+    // var length = Vector::get_length(&vec);
     print("Length of this vector: ");
     printf(length);
     println(".");

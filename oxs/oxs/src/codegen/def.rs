@@ -18,6 +18,7 @@ use crate::{
 use std::{
     collections::{
         HashMap,
+        HashSet,
         BTreeMap
     },
     convert::{
@@ -86,7 +87,9 @@ pub struct ContainerDef {
     /// Map of member variable indices
     pub member_indices: BTreeMap<String, usize>,
     /// Map of member functions
-    pub member_functions: HashMap<String, FunctionDef>
+    pub member_functions: HashMap<String, FunctionDef>,
+    /// Map of interface implements
+    pub interfaces: HashSet<String>
 }
 
 impl ContainerDef {
@@ -97,8 +100,19 @@ impl ContainerDef {
             canonical_name: canon_name,
             member_indices: BTreeMap::new(),
             member_functions: HashMap::new(),
-            member_variables: HashMap::new()
+            member_variables: HashMap::new(),
+            interfaces: HashSet::new()
         }
+    }
+
+    /// Marks this container as implementing an interface
+    pub fn implements(&mut self, intf_canon_name: String) {
+        self.interfaces.insert(intf_canon_name);
+    }
+
+    /// Returns true if this container implements an interface
+    pub fn does_implement(&self, intf_canon_name: &String) -> bool {
+        self.interfaces.contains(intf_canon_name)
     }
 
     /// Adds a member variable
@@ -177,5 +191,29 @@ impl ContainerDef {
         let mut def = ContainerDef::new(item.name.clone(), canon_name);
         def.merge_cont_decl(item);
         def
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct InterfaceDef {
+    pub name: String,
+    pub functions: HashMap<String, FunctionDef>
+}
+
+impl InterfaceDef {
+    pub fn new(name: String) -> Self {
+        InterfaceDef {
+            name: name,
+            functions: HashMap::new()
+        }
+    }
+
+    pub fn add_function(&mut self, fn_def: FunctionDef) {
+        let fn_name = fn_def.name.clone();
+        self.functions.insert(fn_name, fn_def);
+    }
+
+    pub fn get_function(&self, fn_name: &str) -> Option<&FunctionDef> {
+        self.functions.get(fn_name)
     }
 }

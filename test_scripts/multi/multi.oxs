@@ -1,6 +1,9 @@
 mod: util;
 
-import: util::println_i = print;
+import: util::{
+    println_i = print,
+    println
+};
 
 fn: main() ~ int {
     var x: string = "dsdsdssdd";

@@ -46,76 +46,76 @@ impl Expression {
         }
         match self {
             Expression::IntLiteral(int) => {
-                println!("{} Int:{}", baseline, int);
+                //println!("{} Int:{}", baseline, int);
             },
             Expression::FloatLiteral(float) => {
-                println!("{} Float:{}", baseline, float);
+                //println!("{} Float:{}", baseline, float);
             },
             Expression::StringLiteral(string) => {
-                println!("{} String:{}", baseline, string);
+                //println!("{} String:{}", baseline, string);
             },
             Expression::Variable(variable) => {
-                println!("{} Variable:{}", baseline, variable);
+                //println!("{} Variable:{}", baseline, variable);
             },
             Expression::Addition(lhs, rhs) => {
-                println!("{} Addition:", baseline);
+                //println!("{} Addition:", baseline);
                 lhs.print(n + 1);
                 rhs.print(n + 1)
             },
             Expression::Subtraction(lhs, rhs) => {
-                println!("{} Subtraction:", baseline);
+                //println!("{} Subtraction:", baseline);
                 lhs.print(n + 1);
                 rhs.print(n + 1)
             },
             Expression::Multiplication(lhs, rhs) => {
-                println!("{} Multiplication:", baseline);
+                //println!("{} Multiplication:", baseline);
                 lhs.print(n + 1);
                 rhs.print(n + 1)
             },
             Expression::Division(lhs, rhs) => {
-                println!("{} Division:", baseline);
+                //println!("{} Division:", baseline);
                 lhs.print(n + 1);
                 rhs.print(n + 1)
             },
             Expression::MemberAccess(lhs, rhs) => {
-                println!("{} Member access:", baseline);
+                //println!("{} Member access:", baseline);
                 lhs.print(n + 1);
                 rhs.print(n + 1);
             },
             Expression::Call(fn_name, args) => {
-                println!("{} Call \"{}\":", baseline, fn_name);
-                println!("{} Arguments:", baseline);
+                //println!("{} Call \"{}\":", baseline, fn_name);
+                //println!("{} Arguments:", baseline);
                 for arg in args.iter() {
                     arg.print(n + 1);
                 }
             },
             Expression::Assign(lhs, rhs) => {
-                println!("{} Assign:", baseline);
+                //println!("{} Assign:", baseline);
                 lhs.print(n + 1);
                 rhs.print(n + 1)
             },
             Expression::AddAssign(lhs, rhs) => {
-                println!("{} AddAssign:", baseline);
+                //println!("{} AddAssign:", baseline);
                 lhs.print(n + 1);
                 rhs.print(n + 1)
             },
             Expression::SubAssign(lhs, rhs) => {
-                println!("{} SubAssign:", baseline);
+                //println!("{} SubAssign:", baseline);
                 lhs.print(n + 1);
                 rhs.print(n + 1)
             },
             Expression::MulAssign(lhs, rhs) => {
-                println!("{} MulAssign:", baseline);
+                //println!("{} MulAssign:", baseline);
                 lhs.print(n + 1);
                 rhs.print(n + 1)
             },
             Expression::DivAssign(lhs, rhs) => {
-                println!("{} DivAssign:", baseline);
+                //println!("{} DivAssign:", baseline);
                 lhs.print(n + 1);
                 rhs.print(n + 1)
             },
             _ => {
-                println!("{} Other:", baseline);
+                //println!("{} Other:", baseline);
             }
         }
     }
@@ -127,12 +127,13 @@ impl Expression {
             _ => false
         }
     }
-    /// Checks if an expression contains a member call expr
-    pub fn is_member_call(&self) -> bool {
+    /// Checks if an expression ends in a call expr
+    pub fn ends_in_call(&self) -> bool {
         match self {
             Expression::MemberAccess(_, rhs) => {
-                rhs.is_member_call()
+                rhs.ends_in_call()
             },
+            Expression::Call(_, _) => true,
             _ => false
         }
     }
@@ -176,6 +177,7 @@ pub enum Declaration {
     Container(ContainerDeclArgs),
     Import(String, String),
     Impl(String, String, Vec<Declaration>),
+    Interface(String, Vec<Declaration>),
     StaticVar(VariableDeclArgs)
 }
 
@@ -246,6 +248,31 @@ impl Type {
                 inner_type.deref().clone()
             },
             _ => panic!("Not a reference!")
+        }
+    }
+
+    pub fn is_cont_reference(&self) -> bool {
+        match self {
+            Type::Reference(inner_type) => {
+                match **inner_type {
+                    Type::Other(_) => true,
+                    _ => false
+                }
+            },
+            _ => false
+        }
+    }
+
+    pub fn get_cont_name(&self) -> Option<&String> {
+        match self {
+            Type::Other(cont_name) => Some(cont_name),
+            Type::Reference(inner_type) => {
+                match inner_type.deref() {
+                    Type::Other(cont_name) => Some(&cont_name),
+                    _ => None
+                }
+            },
+            _ => None,
         }
     }
 }

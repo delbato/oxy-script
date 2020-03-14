@@ -38,18 +38,18 @@ fn test_compile_stmt_var_decl() {
     let decl_list = decl_list_res.unwrap();
 
     for stmt in decl_list.iter() {
-        println!("{:?}", stmt);
+        //println!("{:?}", stmt);
     }
 
     let mut compiler = Compiler::new();
     let compile_res = compiler.compile_root(&decl_list);
-    println!("{:?}", compile_res);
+    //println!("{:?}", compile_res);
     assert!(compile_res.is_ok());
 
     let builder = compiler.get_builder();
 
     for instr in builder.instructions.iter() {
-        println!("{:?}", instr);
+        //println!("{:?}", instr);
     }
 }
 
@@ -74,18 +74,18 @@ fn test_compile_if() {
     let decl_list = decl_list_res.unwrap();
 
     for stmt in decl_list.iter() {
-        println!("{:?}", stmt);
+        //println!("{:?}", stmt);
     }
 
     let mut compiler = Compiler::new();
     let compile_res = compiler.compile_root(&decl_list);
-    println!("{:?}", compile_res);
+    //println!("{:?}", compile_res);
     assert!(compile_res.is_ok());
 
     let builder = compiler.get_builder();
 
     for instr in builder.instructions.iter() {
-        println!("{:?}", instr);
+        //println!("{:?}", instr);
     }
 }
 
@@ -110,13 +110,13 @@ fn test_compile_var_assign() {
 
     let mut compiler = Compiler::new();
     let compile_res = compiler.compile_root(&decl_list);
-    println!("{:?}", compile_res);
+    //println!("{:?}", compile_res);
     assert!(compile_res.is_ok());
 
     let builder = compiler.get_builder();
 
     for instr in builder.instructions.iter() {
-        println!("{:?}", instr);
+        //println!("{:?}", instr);
     }
 }
 
@@ -141,13 +141,13 @@ fn test_compile_auto_var() {
 
     let mut compiler = Compiler::new();
     let compile_res = compiler.compile_root(&decl_list);
-    println!("{:?}", compile_res);
+    //println!("{:?}", compile_res);
     assert!(compile_res.is_ok());
 
     let builder = compiler.get_builder();
 
     for instr in builder.instructions.iter() {
-        println!("{:?}", instr);
+        //println!("{:?}", instr);
     }
 }
 
@@ -175,7 +175,7 @@ fn test_compile_while_stmt() {
 
     let mut compiler = Compiler::new();
     let compile_res = compiler.compile_root(&decl_list);
-    println!("{:?}", compile_res);
+    //println!("{:?}", compile_res);
     assert!(compile_res.is_ok());
 
     let builder = compiler.get_builder();
@@ -183,7 +183,7 @@ fn test_compile_while_stmt() {
     let mut pos = 0;
 
     for instr in builder.instructions.iter() {
-        println!("{}:  {:?}", pos, instr);
+        //println!("{}:  {:?}", pos, instr);
         pos += instr.get_size();
     }
 }
@@ -215,7 +215,7 @@ fn test_compile_cont_instance() {
 
     let mut compiler = Compiler::new();
     let compile_res = compiler.compile_root(&decl_list);
-    println!("{:?}", compile_res);
+    //println!("{:?}", compile_res);
     assert!(compile_res.is_ok());
 
     let builder = compiler.get_builder();
@@ -223,7 +223,7 @@ fn test_compile_cont_instance() {
     let mut pos = 0;
 
     for instr in builder.instructions.iter() {
-        println!("{}:  {:?}", pos, instr);
+        //println!("{}:  {:?}", pos, instr);
         pos += instr.get_size();
     }
 }
@@ -253,20 +253,20 @@ fn test_compile_member_call() {
             var x = vec.get_x();
         }
     ");
-    println!("Starting parse");
+    //println!("Starting parse");
     let parser = Parser::new(code.clone());
     let mut lexer = Token::lexer(code.as_str());
 
     let decl_list_res = parser.parse_decl_list(&mut lexer, &[]);
-    println!("Finished parse");
-    println!("{:?}", decl_list_res);
+    //println!("Finished parse");
+    //println!("{:?}", decl_list_res);
     assert!(decl_list_res.is_ok());
 
     let decl_list = decl_list_res.unwrap();
 
     let mut compiler = Compiler::new();
     let compile_res = compiler.compile_root(&decl_list);
-    println!("{:?}", compile_res);
+    //println!("{:?}", compile_res);
     assert!(compile_res.is_ok());
 
     let builder = compiler.get_builder();
@@ -274,7 +274,7 @@ fn test_compile_member_call() {
     let mut pos = 0;
 
     for instr in builder.instructions.iter() {
-        println!("{}:  {:?}", pos, instr);
+        //println!("{}:  {:?}", pos, instr);
         pos += instr.get_size();
     }
 }

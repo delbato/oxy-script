@@ -260,6 +260,13 @@ impl Compiler {
         fn_ctx.register_allocator.get_last_temp_register()
     }
 
+    /// Forces the temporary register to a specific one
+    pub fn force_temp_register(&mut self, reg: Register) -> CompilerResult<()> {
+        let fn_ctx = self.get_current_function_mut()?;
+        fn_ctx.register_allocator.force_temp_register(reg);
+        Ok(())
+    }
+
     /// Gets the current loop context
     pub fn get_current_loop(&self) -> CompilerResult<&LoopContext> {
         self.loop_ctx_stack.get(0)
@@ -328,6 +335,7 @@ impl Compiler {
     pub fn resolve_function(&self, name: &String) -> CompilerResult<FunctionDef> {
         //println!("Resolving function: {}", name);
         if name.contains("::") {
+            //println!("is a module path");
             let path_fragments: Vec<String> = name.split("::").map(|s| String::from(s)).collect();
             let mut mod_ctx_opt = None;
             let mut cont_def_opt = None;
@@ -339,12 +347,13 @@ impl Compiler {
                 start_i = 1;
                 return Err(CompilerError::Unimplemented(format!("Blub")));
             } else {
+                //println!("Starting from current module.");
                 mod_ctx_opt = Some(self.get_current_module()?);
             }
 
             if let Some(mod_ctx) = mod_ctx_opt {
                 //println!("Is in root module");
-                if !mod_ctx.modules.contains_key(&path_fragments[0]) {
+                if !mod_ctx.modules.contains_key(&path_fragments[0]) && !mod_ctx.containers.contains_key(&path_fragments[0]) {
                     mod_ctx_opt = Some(self.get_root_module()?);
                 }
             }
@@ -656,8 +665,21 @@ impl Compiler {
             Declaration::Container(_) => self.declare_cont_decl(decl)?,
             Declaration::Import(_, _) => self.declare_import_decl(decl)?,
             Declaration::Impl(_, _, _) => self.declare_impl_decl(decl)?,
-            Declaration::StaticVar(_) => self.declare_static_var(decl)?
+            Declaration::StaticVar(_) => self.declare_static_var(decl)?,
+            Declaration::Interface(_, _) => self.declare_intf_decl(decl)?,
         };
+        Ok(())
+    }
+
+    /// (Pre-)declares an interface declaratio
+    pub fn declare_intf_decl(&mut self, decl: &Declaration) -> CompilerResult<()> {
+        let (intf_name, intf_decl_list) = match decl {
+            Declaration::Interface(name, list) => (name, list),
+            _ => return Err(CompilerError::Unknown)
+        };
+
+        
+
         Ok(())
     }
 
@@ -691,6 +713,7 @@ impl Compiler {
         }
 
         if let Some(cont_name) = self.current_cont.as_ref().cloned() {
+            //println!("Adding function def to cont {}", cont_name);
             let mod_ctx = self.get_current_module_mut()?;
             let cont_def = mod_ctx.get_container_mut(&cont_name)?;
             cont_def.add_member_function(fn_def)?;
@@ -780,6 +803,8 @@ impl Compiler {
         let mut canonical_name = self.get_module_path();
         canonical_name += &impl_type;
 
+        //println!("Declaring impl for {}", canonical_name);
+
         if impl_type == impl_for {
             let mod_ctx = self.get_current_module_mut()?;
             let cont_res = mod_ctx.get_container(impl_type);
@@ -835,8 +860,15 @@ impl Compiler {
         };
 
         //println!("Compiling fn_decl");
-
-        let fn_def = self.resolve_function(&fn_decl_args.name)?;
+        let fn_def;
+        if self.current_cont.is_none() {
+            fn_def = self.resolve_function(&fn_decl_args.name)?;
+        } else {
+            let current_cont_name = self.current_cont.as_ref().ok_or(CompilerError::Unknown)?;
+            let cont_def = self.resolve_container(current_cont_name)?;
+            fn_def = cont_def.get_member_function(&fn_decl_args.name)?
+                .clone();
+        }
 
         //println!("Fn def: {:?}", fn_def);
 
@@ -1040,6 +1072,7 @@ impl Compiler {
             Statement::VariableDecl(var_decl_args) => var_decl_args,
             _ => return Err(CompilerError::Unknown)
         };
+        //println!("Compiling var decl stmt. Args: {:?}", var_decl_args);
         //println!("Compiling var decl stmt");
         // The variable name
         let var_name = var_decl_args.name.clone();
@@ -1925,8 +1958,56 @@ impl Compiler {
             },
             Expression::MemberAccess(_, _) => {
                 self.compile_member_access_expr(expr)?;
+                // Last register contains the source/dest address
+                let last_reg = self.get_last_register()?;
+                if expr_type.is_primitive() && !expr.ends_in_call() {
+                    let next_reg = self.get_next_register()?;
+                    match expr_type {
+                        Type::Int => {
+                            let movi_instr = Instruction::new(Opcode::MOVI_AR)
+                                .with_operand::<u8>(last_reg.into())
+                                .with_operand::<i16>(0)
+                                .with_operand::<u8>(next_reg.into());
+                            self.builder.push_instr(movi_instr);
+                        },
+                        Type::Bool => {
+                            let movb_instr = Instruction::new(Opcode::MOVB_AR)
+                                .with_operand::<u8>(last_reg.into())
+                                .with_operand::<i16>(0)
+                                .with_operand::<u8>(next_reg.into());
+                            self.builder.push_instr(movb_instr);
+                        },
+                        Type::Float => {
+                            let movf_instr = Instruction::new(Opcode::MOVF_AR)
+                                .with_operand::<u8>(last_reg.into())
+                                .with_operand::<i16>(0)
+                                .with_operand::<u8>(next_reg.into());
+                            self.builder.push_instr(movf_instr);
+                        },
+                        Type::Reference(_) => {
+                            let mova_instr = Instruction::new(Opcode::MOVA_AR)
+                                .with_operand::<u8>(last_reg.into())
+                                .with_operand::<i16>(0)
+                                .with_operand::<u8>(next_reg.into());
+                            self.builder.push_instr(mova_instr);
+                        },
+                        _ => {}
+                    };
+                } else if !expr_type.is_primitive() {
+                    let stack_inc_instr = Instruction::new_inc_stack(expr_size);
+                    self.inc_stack(expr_size)?;
+                    let movn_instr = Instruction::new(Opcode::MOVN_A)
+                        .with_operand::<u8>(last_reg.into())
+                        .with_operand::<i16>(0)
+                        .with_operand::<u8>(Register::SP.into())
+                        .with_operand::<i16>(-(expr_size as i16))
+                        .with_operand::<u32>(expr_size as u32);
+                    self.builder.push_instr(stack_inc_instr);
+                    self.builder.push_instr(movn_instr);
+                }
             },
             Expression::Call(fn_name, _) => {
+                //println!("Compiling call expr. {:?}", expr);
                 //println!("Stack size before call expr: {}", self.get_stack_size()?);
                 self.compile_call_expr(expr)?;
                 let fn_ret_type = {
@@ -2403,39 +2484,101 @@ impl Compiler {
         };
 
         let var_type = self.check_expr_type(lhs_expr)?;
-        let is_reference = match var_type {
-            Type::Other(_) => false,
-            Type::Reference(inner_type) => {
-                match inner_type.deref() {
-                    Type::Other(_) => true,
-                    _ => {
-                        return Err(CompilerError::UnsupportedExpression(lhs_expr.deref().clone()));
-                    }
-                }
-            },
-            _ => return Err(CompilerError::UnsupportedExpression(lhs_expr.deref().clone()))
-        };
+        let is_cont_reference = var_type.is_cont_reference();
 
         match lhs_expr {
             Expression::Variable(var_name) => {
                 let var_offset = self.get_sp_offset_of_var(var_name)?;
                 let next_reg = self.get_next_register()?;
                 // If its a reference on the stack
-                if is_reference {
-                    
+                if is_cont_reference {
+                    // Instruction for moving this pointer into the next register
+                    let mov_ptr_instr = Instruction::new(Opcode::MOVA_AR)
+                        .with_operand::<u8>(Register::SP.into())
+                        .with_operand::<i16>(var_offset as i16)
+                        .with_operand::<u8>(next_reg.clone().into());
+                    self.builder.push_instr(mov_ptr_instr);
                 }
                 // If its a normal stack allocated variable
                 else {
-
+                    let mov_sp_instr = Instruction::new(Opcode::SUBU_I)
+                        .with_operand::<u8>(Register::SP.into())
+                        .with_operand::<u64>(var_offset.abs() as u64)
+                        .with_operand::<u8>(next_reg.into());
+                    self.builder.push_instr(mov_sp_instr);
                 }
             },
             _ => return Err(CompilerError::UnsupportedExpression(lhs_expr.deref().clone()))
         };
 
+        let cont_name = var_type.get_cont_name().ok_or(CompilerError::MemberAccessOnNonContainer)?;
+        let cont_def = self.resolve_container(cont_name)?;
+
+        self.compile_member_access_rhs_expr(rhs_expr, &cont_def)?;
+
         Ok(())
     }
 
-    fn compile_member_access_rhs_expr(&mut self, expr: &Expression) -> CompilerResult<()> {
+    fn compile_member_access_rhs_expr(&mut self, expr: &Expression, cont_def: &ContainerDef) -> CompilerResult<()> {
+        match expr {
+            Expression::Variable(member_name) => {
+                let last_reg = self.get_last_register()?;
+                let member_offset = cont_def.get_member_offset(self, member_name)?;
+                if member_offset > 0 {
+                    let next_reg = self.get_next_register()?;
+                    let addui_instr = Instruction::new(Opcode::ADDU_I)
+                        .with_operand::<u8>(last_reg.into())
+                        .with_operand::<u64>(member_offset as u64)
+                        .with_operand::<u8>(next_reg.into());
+                    self.builder.push_instr(addui_instr);
+                }
+            },
+            Expression::Call(_, _) => {
+                self.compile_member_call_expr(expr, cont_def)?;
+                self.force_temp_register(Register::R0)?;
+            },
+            Expression::MemberAccess(lhs_expr, rhs_expr) => {
+                let mut member_type = Type::Auto;
+
+                match lhs_expr.deref() {
+                    Expression::Variable(member_name) => {
+                        member_type = cont_def.get_member_type(&member_name)?;
+                        let last_reg = self.get_last_register()?;
+                        let member_offset = cont_def.get_member_offset(self, &member_name)?;
+                        if member_type.is_cont_reference() {
+                            let next_reg = self.get_next_register()?;
+                            let mova_instr = Instruction::new(Opcode::MOVA_AR)
+                                .with_operand::<u8>(last_reg.into())
+                                .with_operand::<i16>(member_offset as i16)
+                                .with_operand::<u8>(next_reg.into());
+                            self.builder.push_instr(mova_instr);
+                        } else if member_offset > 0 {
+                            let next_reg = self.get_next_register()?;
+                            let addui_instr = Instruction::new(Opcode::ADDU_I)
+                                .with_operand::<u8>(last_reg.into())
+                                .with_operand::<u64>(member_offset as u64)
+                                .with_operand::<u8>(next_reg.into());
+                            self.builder.push_instr(addui_instr);
+                        }
+                    },
+                    Expression::Call(fn_name, _) => {
+                        let member_fn_def = cont_def.get_member_function(&fn_name)?;
+                        member_type = member_fn_def.ret_type.clone();
+                        self.compile_member_call_expr(expr, cont_def)?;
+                        self.force_temp_register(Register::R0)?;
+                    },
+                    _ => {}
+                };
+
+                self.canonize_type(&mut member_type)?;
+
+                let cont_name = member_type.get_cont_name().ok_or(CompilerError::MemberAccessOnNonContainer)?;
+                let cont_def = self.resolve_container(cont_name)?;
+                self.compile_member_access_rhs_expr(rhs_expr, &cont_def)?;
+            },
+            _ => return Err(CompilerError::UnsupportedExpression(expr.clone()))
+        };
+
         Ok(())
     }
 

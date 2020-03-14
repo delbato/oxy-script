@@ -2,7 +2,8 @@ use crate::{
     codegen::{
         def::{
             ContainerDef,
-            FunctionDef
+            FunctionDef,
+            InterfaceDef
         },
         register::{
             Register,
@@ -33,6 +34,7 @@ pub struct ModuleContext {
     pub modules: HashMap<String, ModuleContext>,
     pub functions: HashMap<String, FunctionDef>,
     pub containers: HashMap<String, ContainerDef>,
+    pub interfaces: HashMap<String, InterfaceDef>,
     pub imports: HashMap<String, String>
 }
 
@@ -44,6 +46,7 @@ impl ModuleContext {
             modules: HashMap::new(),
             functions: HashMap::new(),
             containers: HashMap::new(),
+            interfaces: HashMap::new(),
             imports: HashMap::new()
         }
     }
@@ -90,6 +93,16 @@ impl ModuleContext {
         }
         self.imports.insert(import_as, import_path);
         Ok(())
+    }
+
+    /// Adds an interface
+    pub fn add_interface(&mut self, intf_def: InterfaceDef)  {
+        self.interfaces.insert(intf_def.name.clone(), intf_def);
+    }
+
+    /// Gets an interface
+    pub fn get_interface(&self, intf_name: &str) -> CompilerResult<&InterfaceDef> {
+        self.interfaces.get(intf_name).ok_or(CompilerError::UnknownContainer(String::from(intf_name)))
     }
 
     /// Gets a mutable reference to a container definition, given the name

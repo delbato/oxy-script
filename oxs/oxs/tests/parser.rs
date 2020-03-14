@@ -35,7 +35,7 @@ fn test_parse_multi_import() {
     let code = String::from("
         import std::{
             printi,
-            println
+            //println
         };
     ");
 
@@ -47,7 +47,7 @@ fn test_parse_multi_import() {
 
     let decl_list = decl_res.unwrap();
 
-    println!("Current token: {:?}", lexer.token);
+    //println!("Current token: {:?}", lexer.token);
 
     assert_eq!(decl_list.len(), 2);
 
@@ -60,7 +60,7 @@ fn test_parse_nested_multi_import() {
     let code = String::from("
         import std::{
             printi,
-            println,
+            //println,
             ext::{
                 malloc = alloc,
                 dealloc,
@@ -78,7 +78,7 @@ fn test_parse_nested_multi_import() {
     let decl_list = decl_res.unwrap();
 
     for decl in decl_list {
-        println!("{:?}", decl);
+        //println!("{:?}", decl);
     }
 }
 
@@ -211,7 +211,7 @@ fn test_parse_stmt_addition() {
 
     assert_eq!(stmt_list.len(), 2);
 
-    println!("{:?}", stmt_list);
+    //println!("{:?}", stmt_list);
 }
 
 #[test]
@@ -229,7 +229,7 @@ fn test_parse_stmt_call() {
 
     assert_eq!(stmt_list.len(), 1);
 
-    println!("{:?}", stmt_list);
+    //println!("{:?}", stmt_list);
 }
 
 #[test]
@@ -468,8 +468,8 @@ fn test_parse_while() {
     assert!(stmt_res.is_ok());
 
     if let Statement::While(expr_box, stmt_list) = stmt_res.unwrap() {
-        println!("while expr: {:?}", *expr_box);
-        println!("while stmt list: {:?}", stmt_list);
+        //println!("while expr: {:?}", *expr_box);
+        //println!("while stmt list: {:?}", stmt_list);
     }
 }
 
@@ -487,7 +487,7 @@ fn test_parse_loop() {
     assert!(stmt_res.is_ok());
 
     if let Statement::Loop(stmt_list) = stmt_res.unwrap() {
-        println!("loop stmt list: {:?}", stmt_list);
+        //println!("loop stmt list: {:?}", stmt_list);
     }
 }
 
@@ -505,7 +505,7 @@ fn test_parse_if() {
     let stmt_res = parser.parse_if(&mut lexer);
     assert!(stmt_res.is_ok());
 
-    println!("{:?}", stmt_res.unwrap());
+    //println!("{:?}", stmt_res.unwrap());
 }
 
 #[test]
@@ -525,7 +525,7 @@ fn test_parse_if_else() {
     let stmt_res = parser.parse_if(&mut lexer);
     assert!(stmt_res.is_ok());
 
-    println!("{:?}", stmt_res.unwrap());
+    //println!("{:?}", stmt_res.unwrap());
 }
 
 #[test]
@@ -545,7 +545,7 @@ fn test_parse_if_else_if() {
     let stmt_res = parser.parse_if(&mut lexer);
     assert!(stmt_res.is_ok());
 
-    println!("{:?}", stmt_res.unwrap());
+    //println!("{:?}", stmt_res.unwrap());
 }
 
 #[test]
@@ -568,7 +568,7 @@ fn test_parse_if_else_if_else() {
     let stmt_res = parser.parse_if(&mut lexer);
     assert!(stmt_res.is_ok());
 
-    println!("{:?}", stmt_res.unwrap());
+    //println!("{:?}", stmt_res.unwrap());
 }
 
 #[test]
@@ -636,7 +636,7 @@ fn test_parse_cont_impl() {
     assert!(decl_list_res.is_ok());
 
     for decl in decl_list_res.unwrap() {
-        println!("{:?}", decl);
+        //println!("{:?}", decl);
     }
 }
 
@@ -659,13 +659,13 @@ fn test_parse_cont_instance() {
     let parser = Parser::new(code.clone());
 
     let decl_list_res = parser.parse_root_decl_list();
-    println!("{:?}", decl_list_res);
+    //println!("{:?}", decl_list_res);
     assert!(decl_list_res.is_ok());
 
     for decl in decl_list_res.unwrap() {
         if let Declaration::Function(fn_decl_args) = decl {
             for stmt in fn_decl_args.code_block.iter() {
-                println!("{:?}", stmt);
+                //println!("{:?}", stmt);
             }
         }
     }
