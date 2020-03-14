@@ -13,7 +13,8 @@ use crate::{
         uid_generator::UIDGenerator,
         def::{
             ContainerDef,
-            FunctionDef
+            FunctionDef,
+            InterfaceDef
         },
         builder::{
             Builder
@@ -78,6 +79,7 @@ pub enum CompilerError {
     Unimplemented(String),
     DuplicateVariable(String),
     DuplicateMember(String),
+    DuplicateMemberFunction(String, String),
     DuplicateFunction(String),
     DuplicateModule(String),
     DuplicateContainer(String),
@@ -88,11 +90,13 @@ pub enum CompilerError {
     UnknownModule(String),
     UnknownType(Type),
     UnknownMember(String),
+    UnknownInterface(String),
     UnsupportedExpression(Expression),
     InvalidModulePath(String),
     AlreadyContainsContainer(String),
     AlreadyContainsModule(String),
     NotAMemberFunction(String),
+    NotAllInterfaceFunctionsImplemented(String, String),
     ArgumentMismatch(String),
     MemberAccessOnNonContainer,
     TypeMismatch(Type, Type),
@@ -123,6 +127,7 @@ pub struct Compiler {
     uid_generator: UIDGenerator,
     builder: Builder,
     current_cont: Option<String>,
+    current_intf: Option<String>,
     data: Data
 }
 
@@ -142,6 +147,7 @@ impl Compiler {
             uid_generator: UIDGenerator::new(),
             builder: Builder::new(),
             current_cont: None,
+            current_intf: None,
             data: Data::new()
         }
     }
@@ -406,6 +412,50 @@ impl Compiler {
                 return self.resolve_function(import_path);
             }
             return Err(CompilerError::UnknownFunction(name.clone()));
+        }
+    }
+
+    /// Resolves an interface by name to an InterfaceDef
+    pub fn resolve_interface(&self, name: &String) -> CompilerResult<InterfaceDef> {
+        //println!("Resolving container by name {}", name);
+        if name.contains("::") {
+            let path_fragments: Vec<String> = name.split("::").map(|s| String::from(s)).collect();
+            let mut mod_ctx_opt = None;
+            let mut start_i = 0;
+            if path_fragments[0] == "root" {
+                start_i = 1;
+                mod_ctx_opt = Some(self.get_root_module()?);
+            } else if path_fragments[0] == "super" {
+                start_i = 1;
+                return Err(CompilerError::Unimplemented(format!("Blub")));
+            } else {
+                mod_ctx_opt = Some(self.get_current_module()?);
+            }
+
+            for i in start_i..path_fragments.len() - 1 {
+                let mod_ctx = mod_ctx_opt.unwrap();
+                //println!("Blub");
+                mod_ctx_opt = mod_ctx.modules.get(&path_fragments[i]);
+            }
+
+            let last_path = path_fragments.last().unwrap();
+
+            //println!("Resolving function {} for mod_ctx {}", last_path, mod_ctx_opt.as_ref().unwrap().name);
+
+            let mod_ctx = mod_ctx_opt.unwrap();
+            return mod_ctx.get_interface(last_path).map(|i| i.clone());
+        } else {
+            let mod_ctx = self.get_current_module()?;
+            if mod_ctx.interfaces.contains_key(name) {
+                return mod_ctx.get_interface(name).map(|i| i.clone());
+            }
+            if mod_ctx.imports.contains_key(name) {
+                let import_path = mod_ctx.imports.get(name)
+                    .ok_or(CompilerError::Unknown)?;
+                return self.resolve_interface(import_path);
+            }
+
+            return Err(CompilerError::UnknownInterface(name.clone()));
         }
     }
 
@@ -678,7 +728,19 @@ impl Compiler {
             _ => return Err(CompilerError::Unknown)
         };
 
-        
+        let mut canon_name = self.get_module_path();
+        canon_name += intf_name;
+
+        let intf_def = InterfaceDef::new(intf_name.clone(), canon_name);
+
+        let mod_ctx = self.get_current_module_mut()?;
+        mod_ctx.add_interface(intf_def);
+
+        self.current_intf = Some(intf_name.clone());
+
+        self.declare_decl_list(intf_decl_list)?;
+
+        self.current_intf = None;
 
         Ok(())
     }
@@ -699,6 +761,9 @@ impl Compiler {
         if let Some(cont_name) = self.current_cont.as_ref().cloned() {
             full_fn_name += &cont_name;
             full_fn_name += "::";
+        } else if let Some(intf_name) = self.current_intf.as_ref().cloned() {
+            full_fn_name += &intf_name;
+            full_fn_name += "::";
         }
         full_fn_name += &fn_decl_args.name;
 
@@ -717,6 +782,10 @@ impl Compiler {
             let mod_ctx = self.get_current_module_mut()?;
             let cont_def = mod_ctx.get_container_mut(&cont_name)?;
             cont_def.add_member_function(fn_def)?;
+        } else if let Some(intf_name) = self.current_intf.as_ref().cloned() {
+            let mod_ctx = self.get_current_module_mut()?;
+            let intf_def = mod_ctx.get_interface_mut(&intf_name)?;
+            intf_def.add_function(fn_def);
         } else {
             let mod_ctx = self.get_current_module_mut()?;
             mod_ctx.add_function(fn_def)?;
@@ -768,6 +837,7 @@ impl Compiler {
             cont_def.merge_cont_decl(cont_decl_args);
         } else {
             let cont_def = ContainerDef::from_decl(cont_decl_args, canon_name);
+            //println!("Declaring new cont_def: {:?}", cont_def);
             if mod_ctx.modules.contains_key(&cont_decl_args.name) {
                 return Err(CompilerError::AlreadyContainsModule(cont_decl_args.name.clone()));
             }
@@ -816,7 +886,30 @@ impl Compiler {
             self.declare_decl_list(decl_list)?;
             self.current_cont = None;
         } else {
-            return Err(CompilerError::Unimplemented(format!("Cannot currently compile non-cont impls!")));
+            let intf_def = self.resolve_interface(impl_type)?;
+            let cont_def = self.resolve_container(impl_for)?;
+            let mut interface_fn_set: HashSet<String> = intf_def.functions.keys().cloned().collect();
+            let interface_fn_set_clone = interface_fn_set.clone();
+
+            for intf_fn_name in interface_fn_set.iter() {
+                if cont_def.get_member_function(intf_fn_name).is_ok() {
+                    return Err(CompilerError::DuplicateMemberFunction(cont_def.canonical_name.clone(), intf_fn_name.clone()));
+                }
+            }
+            for decl in decl_list.iter() {
+                if let Declaration::Function(fn_decl_args) = decl {
+                    interface_fn_set.remove(&fn_decl_args.name);
+                } else {
+                    return Err(CompilerError::Unknown);
+                }
+            }
+            if interface_fn_set.len() > 0 {
+                return Err(CompilerError::NotAllInterfaceFunctionsImplemented(impl_type.clone(), impl_for.clone()));
+            }
+
+            self.current_cont = Some(impl_type.clone());
+            self.declare_decl_list(decl_list)?;
+            self.current_cont = None;
         }
 
         Ok(())
@@ -847,8 +940,27 @@ impl Compiler {
             Declaration::Function(_) => self.compile_fn_decl(decl)?,
             Declaration::Impl(_, _, _) => self.compile_impl_decl(decl)?,
             Declaration::Module(_, _) => self.compile_mod_decl(decl)?,
+            Declaration::Interface(_, _ ) => self.compile_intf_decl(decl)?,
             _ => {}
         };
+        Ok(())
+    }
+
+    /// Compiles an interface declaration
+    pub fn compile_intf_decl(&mut self, decl: &Declaration) -> CompilerResult<()> {
+        let (intf_name, intf_decl_list) = match decl {
+            Declaration::Interface(name, list) => (name, list),
+            _ => return Err(CompilerError::Unknown)
+        };
+
+        let intf_def = self.resolve_interface(intf_name)?;
+
+        self.current_intf = Some(intf_def.canonical_name.clone());
+
+        self.compile_decl_list(intf_decl_list)?;
+
+        self.current_intf = None;
+
         Ok(())
     }
 
@@ -861,13 +973,18 @@ impl Compiler {
 
         //println!("Compiling fn_decl");
         let fn_def;
-        if self.current_cont.is_none() {
-            fn_def = self.resolve_function(&fn_decl_args.name)?;
-        } else {
+        if self.current_cont.is_some() {
             let current_cont_name = self.current_cont.as_ref().ok_or(CompilerError::Unknown)?;
             let cont_def = self.resolve_container(current_cont_name)?;
             fn_def = cont_def.get_member_function(&fn_decl_args.name)?
                 .clone();
+        } else if self.current_intf.is_some() {
+            let current_intf_name = self.current_intf.as_ref().ok_or(CompilerError::Unknown)?;
+            let intf_def = self.resolve_interface(&current_intf_name)?;
+            fn_def = intf_def.get_function(&fn_decl_args.name)?
+                .clone();
+        } else {
+            fn_def = self.resolve_function(&fn_decl_args.name)?;
         }
 
         //println!("Fn def: {:?}", fn_def);
@@ -879,6 +996,9 @@ impl Compiler {
         let mut full_fn_name = self.get_module_path();
         if self.current_cont.is_some() {
             full_fn_name += self.current_cont.as_ref().unwrap();
+            full_fn_name += "::";
+        } else if self.current_intf.is_some() {
+            full_fn_name += self.current_intf.as_ref().unwrap();
             full_fn_name += "::";
         }
         full_fn_name += &fn_decl_args.name;
@@ -2477,6 +2597,7 @@ impl Compiler {
 
     /// Compiles a member access expression
     pub fn compile_member_access_expr(&mut self, expr: &Expression) -> CompilerResult<()> {
+        //println!("Compiling member access expr");
         //println!("Line 2374");
         let (lhs_expr, rhs_expr) = match expr {
             Expression::MemberAccess(lhs, rhs) => (lhs.deref(), rhs.deref()),
@@ -2484,10 +2605,14 @@ impl Compiler {
         };
 
         let var_type = self.check_expr_type(lhs_expr)?;
+        //println!("Type of parent member access var: {:?}", var_type);
         let is_cont_reference = var_type.is_cont_reference();
 
         match lhs_expr {
             Expression::Variable(var_name) => {
+                if var_name == "pos" {
+                    //println!("Accessing var pos.");
+                }
                 let var_offset = self.get_sp_offset_of_var(var_name)?;
                 let next_reg = self.get_next_register()?;
                 // If its a reference on the stack
@@ -2514,6 +2639,8 @@ impl Compiler {
         let cont_name = var_type.get_cont_name().ok_or(CompilerError::MemberAccessOnNonContainer)?;
         let cont_def = self.resolve_container(cont_name)?;
 
+        //println!("Compiling member acceess with container name {}", cont_name);
+
         self.compile_member_access_rhs_expr(rhs_expr, &cont_def)?;
 
         Ok(())
@@ -2522,6 +2649,7 @@ impl Compiler {
     fn compile_member_access_rhs_expr(&mut self, expr: &Expression, cont_def: &ContainerDef) -> CompilerResult<()> {
         match expr {
             Expression::Variable(member_name) => {
+                //println!("Accessing member {} of cont_def: {:?}", member_name, cont_def);
                 let last_reg = self.get_last_register()?;
                 let member_offset = cont_def.get_member_offset(self, member_name)?;
                 if member_offset > 0 {
@@ -2540,8 +2668,11 @@ impl Compiler {
             Expression::MemberAccess(lhs_expr, rhs_expr) => {
                 let mut member_type = Type::Auto;
 
+                //println!("Nested member access!");
+
                 match lhs_expr.deref() {
                     Expression::Variable(member_name) => {
+                        //println!("Accessing {} of cont_def {:?}", member_name, cont_def);
                         member_type = cont_def.get_member_type(&member_name)?;
                         let last_reg = self.get_last_register()?;
                         let member_offset = cont_def.get_member_offset(self, &member_name)?;
@@ -3124,7 +3255,7 @@ impl Compiler {
                 self.get_type_of_var(var_name)?
             },
             Expression::MemberAccess(_, _) => {
-                self.check_member_access_expr_type(expr, None)?
+                self.check_member_access_expr_type(expr)?
             },
             Expression::ContainerInstance(cont_name, _) => {
                 Type::Other(cont_name.clone())
@@ -3246,68 +3377,55 @@ impl Compiler {
         //Err(CompilerError::Unimplemented(format!("Expr type checking not implemented!")))
     }
 
-    pub fn check_member_access_expr_type(&self, expr: &Expression, cont_def: Option<&ContainerDef>) -> CompilerResult<Type> {
+    pub fn check_member_access_expr_type(&self, expr: &Expression) -> CompilerResult<Type> {
         let (lhs_expr, rhs_expr) = match expr {
             Expression::MemberAccess(lhs, rhs) => (lhs.deref(), rhs.deref()),
             _ => return Err(CompilerError::Unknown)
         };
 
-        let lhs_type = match lhs_expr {
+        let cont_name;
+
+        match lhs_expr {
             Expression::Variable(var_name) => {
-                // If this is a stack variable
-                if cont_def.is_none() {
-                    self.get_type_of_var(var_name)?
-                }
-                // If this is a member
-                else {
-                    let cont_def = cont_def.unwrap();
-                    cont_def.get_member_type(var_name)?
-                }
+                let var_type = self.get_type_of_var(var_name)?;
+                cont_name = var_type.get_cont_name().ok_or(CompilerError::MemberAccessOnNonContainer)?.clone();
+            },
+            Expression::Call(_, _) => {
+                let call_ret_type = self.check_expr_type(lhs_expr)?;
+                cont_name = call_ret_type.get_cont_name().ok_or(CompilerError::MemberAccessOnNonContainer)?.clone();
+                
             },
             _ => return Err(CompilerError::UnsupportedExpression(lhs_expr.clone()))
         };
 
-        let cont_name = match &lhs_type {
-            Type::Other(cont_name) => cont_name,
-            Type::Reference(inner_type) => {
-                match inner_type.deref() {
-                    Type::Other(cont_name) => cont_name,
-                    _ => return Err(CompilerError::MemberAccessOnNonContainer)
-                }
-            },
-            _ => return Err(CompilerError::MemberAccessOnNonContainer)
-        };
+        let cont_def = self.resolve_container(&cont_name)?;
 
-        let cont_def = self.resolve_container(cont_name)?;
+        self.check_member_access_expr_type_rhs(rhs_expr, &cont_def) 
+    }
 
-        match &rhs_expr {
-            Expression::Variable(var_name) => {
-                cont_def.get_member_type(var_name)
-            },
+    pub fn check_member_access_expr_type_rhs(&self, expr: &Expression, cont_def: &ContainerDef) -> CompilerResult<Type> {
+        match expr {
+            Expression::Variable(member_name) => cont_def.get_member_type(member_name),
             Expression::Call(fn_name, _) => {
-                let fn_def = cont_def.get_member_function(fn_name)?;
-                Ok(fn_def.ret_type.clone())
+                let fn_ret_type = cont_def.get_member_function(fn_name)?.ret_type.clone();
+                Ok(fn_ret_type)
             },
-            Expression::MemberAccess(member_expr, _) => {
-                let member_name = match member_expr.deref() {
-                    Expression::Variable(var_name) => var_name,
-                    _ => return Err(CompilerError::UnsupportedExpression(member_expr.deref().clone()))
-                };
-                let member_type = cont_def.get_member_type(member_name)?;
-                let child_cont_name = match &member_type {
-                    Type::Other(cont_name) => cont_name,
-                    Type::Reference(inner_type) => {
-                        match inner_type.deref() {
-                            Type::Other(cont_name) => cont_name,
-                            _ => return Err(CompilerError::MemberAccessOnNonContainer)
-                        }
+            Expression::MemberAccess(lhs_expr, rhs_expr) => {
+                let member_type = match lhs_expr.deref() {
+                    Expression::Variable(member_name) => {
+                        cont_def.get_member_type(member_name)?
                     },
-                    _ => return Err(CompilerError::MemberAccessOnNonContainer)
+                    Expression::Call(member_fn_name, _) => {
+                        let fn_def = cont_def.get_member_function(member_fn_name)?;
+                        fn_def.ret_type.clone()
+                    },
+                    _ => return Err(CompilerError::UnsupportedExpression(lhs_expr.deref().clone()))
                 };
-                let child_cont_def = self.resolve_container(child_cont_name)?;
-                self.check_member_access_expr_type(rhs_expr, Some(&child_cont_def))
+                let cont_name = member_type.get_cont_name().ok_or(CompilerError::MemberAccessOnNonContainer)?;
+                let cont_def = self.resolve_container(&cont_name)?;
+                self.check_member_access_expr_type_rhs(rhs_expr, &cont_def)
             },
-            _ => return Err(CompilerError::MemberAccessOnNonContainer)
+            _ => return Err(CompilerError::UnsupportedExpression(expr.clone()))
         }
     }
 

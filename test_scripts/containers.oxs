@@ -9,6 +9,11 @@ cont: Vector {
     y: float;
 }
 
+cont: PositionComponent {
+    position: Vector;
+    speed: Vector;
+}
+
 impl: Vector {
     fn: get_length(&this) ~ float {
         var x_squared = this.x * this.x;
@@ -39,9 +44,17 @@ fn: main() {
         x: 7.0,
         y: 0.0 - 6.3
     };
+    var pos = PositionComponent {
+        position: vec,
+        speed: vec
+    };
     var length = vec.get_length();
     // var length = Vector::get_length(&vec);
     print("Length of this vector: ");
     printf(length);
+    println(".");
+
+    print("Value of pos.speed.get_length(): ");
+    printf(pos.speed.get_length());
     println(".");
 }

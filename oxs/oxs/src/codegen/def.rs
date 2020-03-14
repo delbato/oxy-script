@@ -197,23 +197,29 @@ impl ContainerDef {
 #[derive(Clone, Debug)]
 pub struct InterfaceDef {
     pub name: String,
-    pub functions: HashMap<String, FunctionDef>
+    pub canonical_name: String,
+    pub functions: HashMap<String, FunctionDef>,
+    pub vtable_offsets: HashMap<String, usize>,
 }
 
 impl InterfaceDef {
-    pub fn new(name: String) -> Self {
+    pub fn new(name: String, canon_name: String) -> Self {
         InterfaceDef {
             name: name,
-            functions: HashMap::new()
+            canonical_name: canon_name,
+            functions: HashMap::new(),
+            vtable_offsets: HashMap::new()
         }
     }
 
     pub fn add_function(&mut self, fn_def: FunctionDef) {
         let fn_name = fn_def.name.clone();
-        self.functions.insert(fn_name, fn_def);
+        let current_vtable_size = self.functions.len() * 8;
+        self.functions.insert(fn_name.clone(), fn_def);
+        self.vtable_offsets.insert(fn_name, current_vtable_size);
     }
 
-    pub fn get_function(&self, fn_name: &str) -> Option<&FunctionDef> {
-        self.functions.get(fn_name)
+    pub fn get_function(&self, fn_name: &str) -> CompilerResult<&FunctionDef> {
+        self.functions.get(fn_name).ok_or(CompilerError::UnknownFunction(String::from(fn_name)))
     }
 }

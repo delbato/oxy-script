@@ -102,7 +102,12 @@ impl ModuleContext {
 
     /// Gets an interface
     pub fn get_interface(&self, intf_name: &str) -> CompilerResult<&InterfaceDef> {
-        self.interfaces.get(intf_name).ok_or(CompilerError::UnknownContainer(String::from(intf_name)))
+        self.interfaces.get(intf_name).ok_or(CompilerError::UnknownInterface(String::from(intf_name)))
+    }
+
+    /// Gets an interface, mutably
+    pub fn get_interface_mut(&mut self, intf_name: &str) -> CompilerResult<&mut InterfaceDef> {
+        self.interfaces.get_mut(intf_name).ok_or(CompilerError::UnknownInterface(String::from(intf_name)))
     }
 
     /// Gets a mutable reference to a container definition, given the name
